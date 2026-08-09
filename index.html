@@ -3776,29 +3776,80 @@
           // `prop` di sini adalah nama fungsi server yang dipanggil,
           // mis. "getMasterData", "saveEvent", dst.
           const action = prop;
-          return (...params) => {
-            fetch(WEBAPP_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-              body: JSON.stringify({ action, params })
-            })
-              .then(res => {
-                if (!res.ok) throw new Error('HTTP ' + res.status + ' dari server.');
-                return res.json();
-              })
-              .then(data => {
-                if (data && typeof data === 'object' && data.__error) {
-                  throw new Error(data.__error);
-                }
-                if (onSuccess) onSuccess(data);
-              })
-              .catch(err => {
-                console.error('Gagal memanggil aksi "' + action + '":', err);
-                if (onFailure) onFailure(err);
-              });
-          };
+          return (...params) => callServerAction_(action, params, onSuccess, onFailure, 0);
         }
       });
+    }
+
+    // ============================================================
+    // PERBAIKAN #11 (rekomendasi #5): retry otomatis utk error "lock penuh"
+    // Sebelumnya kalau saveEvent()/updateEvent()/deleteOrWithdrawEvent() di
+    // Code.gs gagal mendapat giliran lock (PERBAIKAN #8 -- terjadi saat
+    // beberapa pegawai kebetulan menyimpan/mengubah/menghapus kegiatan
+    // hampir bersamaan), pegawai HARUS klik tombol Simpan/Hapus lagi
+    // secara manual setelah melihat pesan errornya.
+    //
+    // PERBAIKAN: khusus utk error dgn pesan "lock penuh" tsb (BUKAN error
+    // lain spt validasi form salah / tidak berhak, yang PASTI gagal lagi
+    // kalau diulang begitu saja), aksi tulis otomatis dicoba ulang sendiri
+    // di latar belakang (popup "Sedang menyimpan..." tetap tampil spt
+    // biasa) sebelum benar-benar melaporkan gagal ke pengguna. Ini
+    // meratakan beban saat banyak pegawai kebetulan menyimpan bersamaan,
+    // tanpa pegawai perlu ikut campur.
+    // ============================================================
+
+    // Aksi TULIS yang layak dicoba ulang otomatis krn kegagalannya bisa
+    // bersifat SEMENTARA (tinggal menunggu giliran lock) -- BUKAN aksi baca
+    // (getEvents, getMasterData, dst.), yang kegagalannya biasanya krn hal
+    // lain (mis. jaringan) & lebih baik ditangani lewat mekanisme retry di
+    // sisi server (withRetry_ di Code.gs), bukan diulang dari sisi klien.
+    const RETRYABLE_LOCK_ACTIONS_ = ['saveEvent', 'updateEvent', 'deleteOrWithdrawEvent'];
+
+    // Cuplikan pesan ramah yang dilempar acquireWriteLockOrThrow_() di
+    // Code.gs (PERBAIKAN #8) saat lock gagal didapat -- dicocokkan di sini
+    // utk memastikan HANYA error jenis ini yang dicoba ulang otomatis.
+    const LOCK_BUSY_MESSAGE_ = 'Sedang banyak pengguna lain menyimpan perubahan secara bersamaan';
+
+    const MAX_LOCK_RETRY_ATTEMPTS_ = 2; // percobaan ULANG (di luar percobaan pertama)
+
+    function callServerAction_(action, params, onSuccess, onFailure, attempt) {
+      fetch(WEBAPP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action, params })
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('HTTP ' + res.status + ' dari server.');
+          return res.json();
+        })
+        .then(data => {
+          if (data && typeof data === 'object' && data.__error) {
+            throw new Error(data.__error);
+          }
+          if (onSuccess) onSuccess(data);
+        })
+        .catch(err => {
+          const isLockBusy = RETRYABLE_LOCK_ACTIONS_.includes(action) &&
+            err && typeof err.message === 'string' &&
+            err.message.indexOf(LOCK_BUSY_MESSAGE_) !== -1;
+
+          if (isLockBusy && attempt < MAX_LOCK_RETRY_ATTEMPTS_) {
+            // Jeda singkat + sedikit acak (jitter) supaya beberapa klien
+            // yang antre bersamaan tidak mencoba ulang tepat di detik yang
+            // sama persis (yang hanya akan memindahkan tabrakannya, bukan
+            // menyelesaikannya).
+            const delayMs = 1500 * (attempt + 1) + Math.random() * 1000;
+            console.warn('Aksi "' + action + '" antre krn lock penuh, coba ulang otomatis ke-' +
+              (attempt + 2) + ' dalam ~' + Math.round(delayMs / 100) / 10 + ' dtk...');
+            setTimeout(() => {
+              callServerAction_(action, params, onSuccess, onFailure, attempt + 1);
+            }, delayMs);
+            return;
+          }
+
+          console.error('Gagal memanggil aksi "' + action + '":', err);
+          if (onFailure) onFailure(err);
+        });
     }
 
     window.google = window.google || {};
