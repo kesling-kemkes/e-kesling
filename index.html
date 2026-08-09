@@ -4255,7 +4255,20 @@
     // singkat ini, navigasi dalam rentang waktu tertentu memakai data yang
     // sudah ada di memori, jadi jauh lebih cepat & mengurangi beban server.
     let eventsLastFetchedAt = 0;
-    const EVENTS_CLIENT_CACHE_TTL_MS = 60000; // 60 detik
+    // PERBAIKAN PERFORMA (rekomendasi #1): diperpanjang dari 60 detik -> 3
+    // menit. Alasan: analisis kuota menunjukkan getEvents() (cache HIT)
+    // adalah penyumbang TERBESAR total kuota eksekusi harian (~52%) --
+    // BUKAN karena mahal per panggilan (~0,3 dtk), tapi karena volumenya
+    // sangat tinggi (dipanggil tiap kali TTL habis + ada render ulang
+    // kalender: ganti bulan, ganti tampilan, dst). Memperpanjang TTL ini
+    // memangkas volume tsb sekitar 3x lipat tanpa mengorbankan korektnas:
+    // - Perubahan milik SENDIRI (setelah simpan/ubah/hapus) tetap langsung
+    //   terlihat, karena reloadEvents() dipanggil paksa (bypass TTL ini)
+    //   segera setelah aksi tsb berhasil -- lihat handleSaveResult.
+    // - Yang terpengaruh HANYA seberapa cepat melihat perubahan dari
+    //   PEGAWAI LAIN -- jeda sampai 3 menit adalah trade-off wajar utk
+    //   aplikasi input/update kegiatan internal seperti ini.
+    const EVENTS_CLIENT_CACHE_TTL_MS = 180000; // 3 menit (sebelumnya 60 detik)
 
     // PERBAIKAN PERFORMA #2: getEvents() sekarang hanya mengirim field
     // "ringan" per kegiatan (lihat toLightEvent_ di Code.gs) -- field
