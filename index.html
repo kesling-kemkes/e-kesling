@@ -328,19 +328,12 @@
       border-left: 1px solid var(--color-border);
     }
 
-    /* PERBAIKAN 2: Desain ulang blok User & Jabatan menjadi satu chip yang lebih menarik,
-       tanpa tanda kurung pada label Jabatan, dan teks sedikit lebih besar. */
-    .user-info-inline {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.92rem;
-      white-space: nowrap;
-      background: var(--color-primary-light);
-      border: 1px solid var(--color-accent-soft);
-      border-radius: 999px;
-      padding: 0.28rem 0.85rem 0.28rem 0.4rem;
-    }
+    /* PERBAIKAN: blok User & Jabatan + tombol Logout terpisah sebelumnya
+       diganti menjadi SATU icon profil bulat yang bisa diklik di kanan
+       atas -- diklik akan membuka dropdown ringkas berisi nama, jabatan,
+       dan tombol Logout (lihat .btn-profile-avatar & .profile-dropdown-*
+       di bawah). Warna/ikon icon profil dibedakan per jabatan memakai
+       class role-direktur/role-ketua/role-staf/role-admin yang sama. */
     .user-name-text {
       font-weight: 800;
       color: var(--color-ink);
@@ -362,6 +355,92 @@
     .role-ketua     { background: linear-gradient(135deg, #1E3F8F, #2C56B8); color: #FFFFFF; }
     .role-staf      { background: linear-gradient(135deg, #1F7A4D, #259960); color: #FFFFFF; }
     .role-admin     { background: linear-gradient(135deg, #1C1F26, #33394A); color: #F5D547; }
+
+    /* Icon profil bulat di header (pengganti label nama + jabatan + tombol
+       logout terpisah). Warna latar mengikuti jabatan (role-direktur/
+       role-ketua/role-staf/role-admin di atas), di-set lewat JS saat
+       login (lihat onLoginSuccess()). */
+    .btn-profile-avatar {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 4px rgba(14, 38, 32, 0.18);
+    }
+    .btn-profile-avatar:hover,
+    .btn-profile-avatar:focus-visible,
+    .btn-profile-avatar[aria-expanded="true"] {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--color-accent-soft);
+    }
+
+    .profile-dropdown-menu {
+      min-width: 250px;
+      padding: 0.6rem;
+      margin-top: 0.6rem !important;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      background-color: var(--color-surface);
+    }
+    .profile-dropdown-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.35rem 0.4rem 0.6rem;
+    }
+    /* Avatar besar di dalam dropdown -- desain & warnanya sama dengan
+       .btn-profile-avatar di header, hanya ukurannya lebih besar. */
+    .profile-dropdown-avatar {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 1px 4px rgba(14, 38, 32, 0.18);
+    }
+    .profile-dropdown-userinfo {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-width: 0;
+    }
+    .profile-dropdown-userinfo .user-name-text {
+      white-space: normal;
+      line-height: 1.25;
+    }
+    .profile-dropdown-userinfo .role-pill-inline { align-self: flex-start; }
+
+    .profile-dropdown-logout-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      width: 100%;
+      padding: 0.55rem 0.6rem;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      color: #E11D48;
+      font-size: 0.84rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .profile-dropdown-logout-btn:hover { background: #FFF1F2; }
+    .profile-dropdown-logout-btn:focus { outline: none; }
+    .profile-dropdown-logout-btn:focus-visible { box-shadow: 0 0 0 2px var(--color-accent-soft); }
+    .profile-dropdown-logout-btn i { font-size: 1rem; }
 
     .level-pill {
       display: inline-flex;
@@ -385,30 +464,6 @@
       box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
     }
 
-    /* PERBAIKAN 2: Desain Baru Tombol Logout Modern & Ringkas */
-    .btn-logout {
-      height: 34px;
-      padding: 0 0.75rem;
-      border-radius: var(--radius-sm);
-      border: 1px solid #FECDD3;
-      background: #FFF1F2;
-      color: #E11D48;
-      display: flex; 
-      align-items: center; 
-      gap: 0.35rem;
-      font-weight: 700; 
-      font-size: 0.8rem;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-      cursor: pointer;
-    }
-    .btn-logout i { font-size: 0.95rem; }
-    .btn-logout:hover { 
-      background: #E11D48; 
-      color: #FFFFFF; 
-      border-color: #E11D48;
-      box-shadow: 0 2px 8px rgba(225, 29, 72, 0.25);
-    }
 
     .app-container {
       display: flex;
@@ -1025,6 +1080,8 @@
     }
 
     .agenda-card {
+      position: relative;
+      z-index: 1;
       border: 1px solid var(--color-border);
       border-left-width: 5px;
       border-radius: var(--radius-md);
@@ -1034,6 +1091,23 @@
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(14, 38, 32, 0.05);
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* PERBAIKAN: kartu Agenda Mendatang memakai "transition: all", yang
+       otomatis membuat SETIAP kartu punya stacking context tersendiri
+       (krn transform/opacity termasuk dalam daftar "all" yang dipantau
+       browser utk transisi). Akibatnya z-index dropdown-menu (lihat
+       .action-kebab-menu, z-index dari Bootstrap) hanya berlaku DI DALAM
+       stacking context kartunya sendiri -- tidak bisa "naik" melewati
+       kartu lain yang dirender belakangan (kartu berikutnya di bawahnya),
+       sehingga dropdown yang terbuka tampak tertutup sebagian oleh kartu
+       di bawahnya. PERBAIKAN: begitu dropdown sebuah kartu dibuka (lihat
+       listener show.bs.dropdown/hide.bs.dropdown di bagian script),
+       kartu tsb diberi class ".has-open-menu" yang menaikkan z-index-nya
+       jauh di atas kartu-kartu lain, sehingga dropdown-nya selalu tampil
+       penuh di atas. */
+    .agenda-card.has-open-menu {
+      z-index: 1000;
     }
 
     .agenda-card:hover {
@@ -2914,25 +2988,13 @@
       .login-shell { border-radius: var(--radius-md); }
       .login-form-panel { padding: 2rem 1.5rem; }
 
-      /* PERBAIKAN 3: Sembunyikan hanya label Jabatan; nama User tetap tampil
-         menggantikan icon inisial, dengan jarak yang sama ke tombol Logout. */
-      .user-info-inline {
-        background: transparent;
-        border: none;
-        padding: 0;
-        gap: 0.35rem;
-      }
-      #userRoleBadge { display: none; }
-      .user-name-text {
-        font-size: 0.82rem;
-        max-width: 108px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
+      /* PERBAIKAN: header kini hanya berisi satu icon profil bulat
+         (pengganti label Nama + Jabatan + tombol Logout terpisah), jadi
+         cukup diperkecil sedikit di layar sempit -- rincian nama &
+         jabatan tetap lengkap terlihat di dalam dropdown saat diklik. */
       .header-user { gap: 0.75rem; padding-left: 0.6rem; }
       .header-brand-logo { height: 24px; max-width: 120px; }
-      .btn-logout { width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 50%; }
-      .btn-logout .logout-text { display: none; }
+      .btn-profile-avatar { width: 32px; height: 32px; font-size: 0.95rem; }
 
       #rightPanel { width: 100vw; }
     }
@@ -3322,16 +3384,34 @@
         </div>
       </div>
 
-      <!-- User & Jabatan Satu Baris + Redesain Logout (tanpa icon inisial) -->
+      <!-- PERBAIKAN: label Nama User + Jabatan + tombol Logout terpisah
+           diganti menjadi satu icon profil bulat yang bisa diklik --
+           diklik akan membuka dropdown ringkas berisi nama, jabatan, &
+           tombol Logout. Warna/ikon icon profil dibedakan per jabatan
+           (admin/staf/ketua tim/direktur) lewat class role-* yang
+           di-set oleh JS saat login (lihat onLoginSuccess()). -->
       <div class="header-user">
-        <div class="user-info-inline">
-          <span id="userRoleBadge"></span>
-          <span id="userName" class="user-name-text">Nama User</span>
+        <div class="dropdown profile-menu-dropdown">
+          <button class="btn-profile-avatar" id="btnProfileAvatar" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Profil Saya">
+            <i class="bi bi-person-fill" id="profileAvatarIcon"></i>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end profile-dropdown-menu" aria-labelledby="btnProfileAvatar">
+            <div class="profile-dropdown-header">
+              <div class="profile-dropdown-avatar" id="profileDropdownAvatar">
+                <i class="bi bi-person-fill" id="profileDropdownIcon"></i>
+              </div>
+              <div class="profile-dropdown-userinfo">
+                <span id="userName" class="user-name-text">Nama User</span>
+                <span id="userRoleBadge"></span>
+              </div>
+            </div>
+            <hr class="dropdown-divider">
+            <button class="profile-dropdown-logout-btn" type="button" onclick="logout()">
+              <i class="bi bi-box-arrow-right"></i>
+              <span>Keluar dari Sistem</span>
+            </button>
+          </div>
         </div>
-        <button class="btn-logout" onclick="logout()" title="Keluar dari sistem">
-          <i class="bi bi-box-arrow-right"></i>
-          <span class="logout-text">Keluar</span>
-        </button>
       </div>
     </header>
 
@@ -4575,14 +4655,24 @@
 
       const jabatanLower = (currentUser.jabatan_pegawai || '').toLowerCase();
       let badgeClass = 'role-staf';
-      if (jabatanLower.includes('direktur')) badgeClass = 'role-direktur';
-      else if (jabatanLower.includes('ketua')) badgeClass = 'role-ketua';
-      else if (jabatanLower.includes('admin')) badgeClass = 'role-admin';
-      else if (jabatanLower.includes('staf')) badgeClass = 'role-staf';
+      let roleIconClass = 'bi-person-badge-fill';
+      if (jabatanLower.includes('direktur')) { badgeClass = 'role-direktur'; roleIconClass = 'bi-award-fill'; }
+      else if (jabatanLower.includes('ketua')) { badgeClass = 'role-ketua'; roleIconClass = 'bi-people-fill'; }
+      else if (jabatanLower.includes('admin')) { badgeClass = 'role-admin'; roleIconClass = 'bi-shield-lock-fill'; }
+      else if (jabatanLower.includes('staf')) { badgeClass = 'role-staf'; roleIconClass = 'bi-person-badge-fill'; }
 
       // Format satu baris: Jabatan User (tanpa tanda kurung)
       document.getElementById('userRoleBadge').innerHTML =
         `<span class="badge role-pill-inline ${badgeClass}">${currentUser.jabatan_pegawai}</span>`;
+
+      // PERBAIKAN: icon profil bulat di header & di dalam dropdown-nya
+      // dibedakan warna + ikonnya sesuai jabatan (admin/staf/ketua tim/
+      // direktur), memakai class role-* (gradasi warna) yang sama dengan
+      // yang sudah dipakai pada chip jabatan di atas.
+      document.getElementById('btnProfileAvatar').className = 'btn-profile-avatar ' + badgeClass;
+      document.getElementById('profileDropdownAvatar').className = 'profile-dropdown-avatar ' + badgeClass;
+      document.getElementById('profileAvatarIcon').className = 'bi ' + roleIconClass;
+      document.getElementById('profileDropdownIcon').className = 'bi ' + roleIconClass;
 
       const containerFilterTim = document.getElementById('containerFilterTim');
       if (jabatanLower.includes('direktur')) {
@@ -6120,6 +6210,31 @@
         };
       }
     }
+
+    // ============================================================
+    // PERBAIKAN: Dropdown menu (tiga titik) pada kartu Agenda Mendatang
+    // tertutup sebagian oleh kartu lain di bawahnya saat dibuka -- lihat
+    // penjelasan lengkap pada CSS ".agenda-card.has-open-menu" di atas.
+    // Dipasang SEKALI pada elemen container (#upcomingListContainer) yang
+    // tidak pernah diganti/dihapus, memakai event delegation Bootstrap
+    // (show.bs.dropdown/hide.bs.dropdown) -- sehingga tetap berfungsi
+    // walau isi container (daftar kartu) dirender ulang berkali-kali oleh
+    // applyFilters().
+    // ============================================================
+    (function setupAgendaKebabStacking_() {
+      const listEl = document.getElementById('upcomingListContainer');
+      if (!listEl) return;
+
+      listEl.addEventListener('show.bs.dropdown', function (e) {
+        const card = e.target.closest('.agenda-card');
+        if (card) card.classList.add('has-open-menu');
+      });
+
+      listEl.addEventListener('hide.bs.dropdown', function (e) {
+        const card = e.target.closest('.agenda-card');
+        if (card) card.classList.remove('has-open-menu');
+      });
+    })();
 
     function applyFilters() {
       const days = parseInt(document.getElementById('filterPeriode').value, 10);
