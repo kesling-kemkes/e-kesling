@@ -673,6 +673,25 @@
       transition: flex 0.25s ease;
     }
 
+    /* PERBAIKAN BUG: #calendarView sebelumnya TIDAK punya aturan CSS
+       sama sekali (masih <div> block biasa), padahal anaknya
+       (.calendar-card) mengandalkan `flex: 1` untuk mengisi sisa tinggi
+       yang tersedia. Karena `flex` hanya berlaku pada elemen di dalam
+       flex container, .calendar-card jadi TIDAK ikut membesar -- tingginya
+       cuma mengikuti tinggi kontennya sendiri, sehingga #calendar
+       (height: 100% dari .calendar-card) ikut collapse ke hampir 0px.
+       Efeknya: FullCalendar sempat merender baris header hari
+       (MIN..SAB) tapi baris tanggal di bawahnya "terpotong"/tidak
+       kelihatan. Menjadikan #calendarView sebagai flex column (dengan
+       flex: 1 & min-height: 0) menyelesaikan ini -- .calendar-card kini
+       benar-benar mengisi sisa ruang vertikal di #centerContent. */
+    #calendarView {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
     .calendar-toolbar {
       display: flex;
       flex-direction: column;
@@ -799,6 +818,12 @@
       box-shadow: var(--shadow-md);
       padding: 1.1rem 1.5rem 1.5rem;
       flex: 1;
+      /* PERBAIKAN: flex item di dalam flex column defaultnya punya
+         min-height: auto (mengikuti konten), yang bisa mencegahnya
+         menyusut/pas dengan sisa ruang yang tersedia di #calendarView.
+         min-height: 0 di sini memastikan .calendar-card benar-benar
+         mengikuti tinggi yang diberikan flex:1, bukan tinggi kontennya. */
+      min-height: 0;
       display: flex;
       flex-direction: column;
       position: relative;
