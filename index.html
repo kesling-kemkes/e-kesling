@@ -320,7 +320,10 @@
     .header-left-group {
       display: flex;
       align-items: center;
-      gap: 1.75rem;
+      /* PERBAIKAN: jarak antara logo Kesling & menu utama sedikit
+         ditambah (1.75rem -> 2.25rem) supaya keduanya tidak terlalu
+         berdempetan. */
+      gap: 2.25rem;
       height: 100%;
       min-width: 0;
     }
@@ -329,12 +332,16 @@
     /* PERBAIKAN: header sebelumnya memakai ikon kalender generik + teks
        "Jadwal Kesling" / "Direktorat Kesehatan Lingkungan" -- sekarang
        diganti dengan logo resmi Kesling (logo yang sama dipakai di
-       halaman login), diskalakan proporsional terhadap tinggi header. */
+       halaman login), diskalakan proporsional terhadap tinggi header.
+       PERBAIKAN: tinggi logo diperbesar (34px -> 46px) supaya lebih
+       terlihat jelas, tanpa mengubah --header-height (60px) -- logo
+       tetap punya ruang napas di atas & bawah karena .app-header
+       memakai align-items:center. */
     .header-brand-logo {
       display: block;
-      height: 34px;
+      height: 46px;
       width: auto;
-      max-width: 190px;
+      max-width: 210px;
       object-fit: contain;
     }
 
@@ -560,6 +567,18 @@
       z-index: 20;
     }
     .top-menu-item.open .top-menu-panel { display: grid; }
+
+    /* PERBAIKAN: menu utama kini juga terbuka otomatis saat cursor
+       berada di area menu (hover), tidak perlu klik lagi -- khusus
+       perangkat dengan mouse (hover: hover) & di atas breakpoint
+       mobile (MOBILE_BREAKPOINT = 992px di JS), supaya perilaku klik
+       untuk layar sentuh/mobile tidak terganggu. Class .open dari JS
+       tetap dipertahankan (dipakai utk state "current"/animasi panah
+       serta perilaku klik/keyboard di semua ukuran layar). */
+    @media (hover: hover) and (pointer: fine) and (min-width: 993px) {
+      .top-menu-item:hover .top-menu-panel { display: grid; }
+      .top-menu-item:hover .top-menu-btn i { transform: rotate(180deg); }
+    }
 
     .menu-card {
       display: flex;
@@ -2977,9 +2996,9 @@
          cukup diatur lewat --header-height saja. */
       :root { --header-height: 54px; }
       .app-header { padding: 0 0.85rem; }
-      .header-left-group { gap: 0.9rem; }
+      .header-left-group { gap: 1.1rem; }
       #rightPanel { top: 0; }
-      .header-brand-logo { height: 28px; max-width: 150px; }
+      .header-brand-logo { height: 38px; max-width: 160px; }
 
       .calendar-toolbar-row { align-items: flex-start; }
       .calendar-toolbar-actions {
@@ -3020,8 +3039,8 @@
          cukup diperkecil sedikit di layar sempit -- rincian nama &
          jabatan tetap lengkap terlihat di dalam dropdown saat diklik. */
       .header-user { gap: 0.75rem; padding-left: 0.6rem; }
-      .header-brand-logo { height: 24px; max-width: 120px; }
-      .header-left-group { gap: 0.5rem; }
+      .header-brand-logo { height: 32px; max-width: 130px; }
+      .header-left-group { gap: 0.75rem; }
       .top-menu-btn { padding: 0 0.5rem; font-size: 0.8rem; gap: 0.3rem; }
       .btn-profile-avatar { width: 32px; height: 32px; font-size: 0.95rem; }
 
