@@ -528,6 +528,13 @@
 
     .top-menu-item { position: relative; display: flex; flex-shrink: 0; }
 
+    /* PERBAIKAN: trigger "Menu Utama" (gabungan Agenda Kegiatan +
+       Aktivitas Tim + Pelaporan) khusus layar sempit -- disembunyikan
+       secara default di layar lebar, baru ditampilkan lewat media
+       query @media (max-width: 768px) di bawah. Lihat penjelasan
+       lengkap di dekat media query tsb. */
+    .mobile-menu-item { display: none; }
+
     .top-menu-btn {
       display: flex;
       align-items: center;
@@ -660,6 +667,78 @@
 
     @media (max-width: 768px) {
       .top-menu-panel { min-width: min(92vw, 420px); grid-template-columns: 1fr; }
+
+      /* PERBAIKAN: di layar sempit (<=768px), 3 menu utama (Agenda
+         Kegiatan, Aktivitas Tim, Pelaporan) yang tadinya tampil sebagai
+         3 tombol terpisah di header sekarang digabung jadi SATU tombol
+         "Menu Utama" berbentuk daftar. Klik salah satu baris di
+         daftarnya akan membuka/menutup submenu terkait (accordion),
+         tanpa perlu pindah halaman.
+         Ini juga sekaligus memperbaiki bug lama: panel dropdown
+         (.top-menu-panel) sebelumnya position:absolute & left:0
+         RELATIF terhadap tombol menu yang diklik. Kalau tombolnya
+         bukan yang paling kiri (mis. tombol "Pelaporan" di ujung
+         kanan), sedangkan lebar panel bisa sampai 92vw, panel jadi
+         meluber melewati tepi kanan layar (lihat laporan pengguna --
+         submenu terpotong/melewati layar). Panel "Menu Utama" yang
+         baru (.mobile-menu-panel) memakai position: fixed dengan
+         left & right yang dikunci ke tepi layar, jadi TIDAK PERNAH
+         bisa meluber ke luar layar berapa pun lebar layarnya atau di
+         mana pun posisi tombol trigger-nya. */
+      .top-menu-bar > .top-menu-item:not(.mobile-menu-item) { display: none; }
+      .mobile-menu-item { display: flex; }
+
+      .mobile-menu-panel {
+        position: fixed;
+        top: calc(var(--header-height) + 0.5rem);
+        left: 0.75rem;
+        right: 0.75rem;
+        min-width: 0;
+        max-width: none;
+        width: auto;
+        max-height: calc(100vh - var(--header-height) - 1.5rem);
+        overflow-y: auto;
+        padding: 0.5rem;
+      }
+
+      .mobile-menu-group + .mobile-menu-group { margin-top: 0.35rem; }
+
+      .mobile-menu-group-header {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        width: 100%;
+        background: var(--color-bg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        padding: 0.65rem 0.7rem;
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: var(--color-text);
+        cursor: pointer;
+        transition: all 0.18s ease;
+      }
+      .mobile-menu-group-header:hover,
+      .mobile-menu-group.open .mobile-menu-group-header {
+        background: var(--color-primary-light);
+        border-color: var(--color-accent-soft);
+        color: var(--color-primary-dark);
+      }
+      .mobile-menu-group-title { flex: 1; text-align: left; }
+      .mobile-menu-group-chevron { font-size: 0.7rem; color: var(--color-muted); transition: transform 0.2s ease; }
+      .mobile-menu-group.open .mobile-menu-group-chevron { transform: rotate(180deg); }
+
+      /* Daftar submenu (.menu-card) di dalam tiap grup -- disembunyikan
+         sampai grupnya di-klik/dibuka (accordion), memakai flex column
+         (bukan grid 2 kolom seperti panel desktop) supaya tiap submenu
+         melebar penuh & mudah disentuh di layar sempit. */
+      .mobile-menu-group-list {
+        display: none;
+        flex-direction: column;
+        gap: 0.3rem;
+        padding: 0.45rem 0 0.1rem 0.4rem;
+      }
+      .mobile-menu-group.open .mobile-menu-group-list { display: flex; }
     }
 
     /* ============= PART 2: KALENDER (TENGAH) ============= */
@@ -3531,6 +3610,103 @@
                   <span class="menu-card-soon">Segera hadir</span>
                 </span>
               </button>
+            </div>
+          </div>
+
+          <!-- PERBAIKAN: khusus layar sempit (<=768px, lihat CSS
+               .mobile-menu-item), 3 menu di atas (Agenda Kegiatan,
+               Aktivitas Tim, Pelaporan) disembunyikan & diganti dengan
+               SATU tombol "Menu Utama" berbentuk daftar ini. Setiap
+               baris daftar bisa diklik untuk membuka/menutup submenu
+               terkait (accordion) di tempat, tanpa perlu 3 tombol
+               terpisah yang gampang membuat panelnya meluber ke luar
+               layar. Isi tiap grup sengaja disalin dari 3 menu di
+               atas (bukan digenerate lewat JS) supaya kontennya
+               selalu identik & mudah dirawat berdampingan. Elemen ini
+               tetap ada di DOM di layar lebar, hanya disembunyikan
+               lewat CSS. -->
+          <div class="top-menu-item mobile-menu-item" data-menu="mobile-utama">
+            <button type="button" class="top-menu-btn" onclick="toggleTopMenu('mobile-utama', event)">
+              <span><i class="bi bi-list"></i> Menu Utama</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="top-menu-panel mobile-menu-panel" id="menuPanel-mobile-utama">
+              <div class="mobile-menu-group" data-group="agenda">
+                <button type="button" class="mobile-menu-group-header" onclick="toggleMobileMenuGroup('agenda', event)">
+                  <span class="menu-card-icon"><i class="bi bi-calendar3"></i></span>
+                  <span class="mobile-menu-group-title">Agenda Kegiatan</span>
+                  <i class="bi bi-chevron-down mobile-menu-group-chevron"></i>
+                </button>
+                <div class="mobile-menu-group-list" id="mobileGroupList-agenda">
+                  <button type="button" class="menu-card active" data-submenu="kalender" onclick="selectSubmenu('agenda','kalender', event)">
+                    <span class="menu-card-icon"><i class="bi bi-calendar3"></i></span>
+                    <span>
+                      <span class="menu-card-title d-block">Kalender</span>
+                      <p class="menu-card-desc">Kelola dan pantau seluruh agenda tim di satu tempat</p>
+                    </span>
+                  </button>
+                  <button type="button" class="menu-card disabled" data-submenu="daftar" onclick="selectSubmenu('agenda','daftar', event)">
+                    <span class="menu-card-icon"><i class="bi bi-list-check"></i></span>
+                    <span>
+                      <span class="menu-card-title d-block">Daftar Kegiatan</span>
+                      <p class="menu-card-desc">Rekap kegiatan dalam bentuk daftar/tabel</p>
+                      <span class="menu-card-soon">Segera hadir</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mobile-menu-group" data-group="aktivitas">
+                <button type="button" class="mobile-menu-group-header" onclick="toggleMobileMenuGroup('aktivitas', event)">
+                  <span class="menu-card-icon"><i class="bi bi-people"></i></span>
+                  <span class="mobile-menu-group-title">Aktivitas Tim</span>
+                  <i class="bi bi-chevron-down mobile-menu-group-chevron"></i>
+                </button>
+                <div class="mobile-menu-group-list" id="mobileGroupList-aktivitas">
+                  <button type="button" class="menu-card disabled" data-submenu="aktivitas" onclick="selectSubmenu('aktivitas','aktivitas', event)">
+                    <span class="menu-card-icon"><i class="bi bi-people"></i></span>
+                    <span>
+                      <span class="menu-card-title d-block">Aktivitas</span>
+                      <p class="menu-card-desc">Pantau aktivitas terbaru tim kerja</p>
+                      <span class="menu-card-soon">Segera hadir</span>
+                    </span>
+                  </button>
+                  <button type="button" class="menu-card disabled" data-submenu="daftar" onclick="selectSubmenu('aktivitas','daftar', event)">
+                    <span class="menu-card-icon"><i class="bi bi-list-ul"></i></span>
+                    <span>
+                      <span class="menu-card-title d-block">Daftar Aktivitas</span>
+                      <p class="menu-card-desc">Rekap seluruh aktivitas tim</p>
+                      <span class="menu-card-soon">Segera hadir</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mobile-menu-group" data-group="pelaporan">
+                <button type="button" class="mobile-menu-group-header" onclick="toggleMobileMenuGroup('pelaporan', event)">
+                  <span class="menu-card-icon"><i class="bi bi-file-earmark-bar-graph"></i></span>
+                  <span class="mobile-menu-group-title">Pelaporan</span>
+                  <i class="bi bi-chevron-down mobile-menu-group-chevron"></i>
+                </button>
+                <div class="mobile-menu-group-list" id="mobileGroupList-pelaporan">
+                  <button type="button" class="menu-card disabled" data-submenu="skp" onclick="selectSubmenu('pelaporan','skp', event)">
+                    <span class="menu-card-icon"><i class="bi bi-clipboard-data"></i></span>
+                    <span>
+                      <span class="menu-card-title d-block">SKP</span>
+                      <p class="menu-card-desc">Laporan capaian SKP berdasarkan kegiatan</p>
+                      <span class="menu-card-soon">Segera hadir</span>
+                    </span>
+                  </button>
+                  <button type="button" class="menu-card disabled" data-submenu="download" onclick="selectSubmenu('pelaporan','download', event)">
+                    <span class="menu-card-icon"><i class="bi bi-download"></i></span>
+                    <span>
+                      <span class="menu-card-title d-block">Download</span>
+                      <p class="menu-card-desc">Unduh laporan dalam berbagai format</p>
+                      <span class="menu-card-soon">Segera hadir</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </nav>
@@ -7272,6 +7448,13 @@
 
     function closeAllTopMenus() {
       document.querySelectorAll('.top-menu-item.open').forEach(el => el.classList.remove('open'));
+      // PERBAIKAN: setiap kali menu utama ditutup (termasuk tombol
+      // "Menu Utama" di layar sempit), grup accordion di dalamnya
+      // (.mobile-menu-group) ikut ditutup/direset -- supaya lain kali
+      // "Menu Utama" dibuka lagi, tampilannya kembali ke daftar grup
+      // (belum ada submenu yang terbuka), bukan meneruskan state
+      // accordion dari sesi buka-tutup sebelumnya.
+      document.querySelectorAll('.mobile-menu-group.open').forEach(el => el.classList.remove('open'));
     }
 
     function toggleTopMenu(menuKey, evt) {
@@ -7283,6 +7466,20 @@
       if (!wasOpen) item.classList.add('open');
     }
 
+    /* PERBAIKAN: accordion untuk tiap grup (Agenda Kegiatan / Aktivitas
+       Tim / Pelaporan) di dalam panel "Menu Utama" (khusus layar
+       sempit) -- klik salah satu baris grup membuka/menutup daftar
+       submenu-nya di tempat, dan menutup grup lain yang mungkin sedang
+       terbuka (satu grup terbuka dalam satu waktu). */
+    function toggleMobileMenuGroup(groupKey, evt) {
+      if (evt) evt.stopPropagation();
+      const group = document.querySelector('.mobile-menu-group[data-group="' + groupKey + '"]');
+      if (!group) return;
+      const wasOpen = group.classList.contains('open');
+      document.querySelectorAll('.mobile-menu-group.open').forEach(el => el.classList.remove('open'));
+      if (!wasOpen) group.classList.add('open');
+    }
+
     function selectSubmenu(menuKey, subKey, evt) {
       if (evt) evt.stopPropagation();
 
@@ -7291,12 +7488,23 @@
       const currentItem = document.querySelector('.top-menu-item[data-menu="' + menuKey + '"]');
       if (currentItem) currentItem.classList.add('current');
 
+      // PERBAIKAN: sejak panel "Menu Utama" (layar sempit) dan panel
+      // menu desktop kini menyimpan SALINAN kartu submenu yang sama
+      // (mis. sama-sama punya kartu data-submenu="daftar", baik milik
+      // grup "agenda" maupun "aktivitas" -- keynya bisa bentrok), tidak
+      // cukup lagi mencari HANYA di dalam #menuPanel-<menuKey>. Di sini
+      // dicari SEMUA kartu dengan data-submenu yang cocok, lalu hanya
+      // yang benar-benar berasal dari grup menuKey terkait (baik versi
+      // desktop di dalam #menuPanel-<menuKey>, maupun versi mobile di
+      // dalam .mobile-menu-group[data-group="<menuKey>"]) yang ditandai
+      // aktif -- supaya kartu dari grup lain yang kebetulan memakai key
+      // submenu yang sama tidak ikut tertandai.
       document.querySelectorAll('.menu-card').forEach(el => el.classList.remove('active'));
-      const panel = document.getElementById('menuPanel-' + menuKey);
-      if (panel) {
-        const card = panel.querySelector('.menu-card[data-submenu="' + subKey + '"]');
-        if (card) card.classList.add('active');
-      }
+      document.querySelectorAll('.menu-card[data-submenu="' + subKey + '"]').forEach(el => {
+        if (el.closest('#menuPanel-' + menuKey) || el.closest('.mobile-menu-group[data-group="' + menuKey + '"]')) {
+          el.classList.add('active');
+        }
+      });
 
       closeAllTopMenus();
 
