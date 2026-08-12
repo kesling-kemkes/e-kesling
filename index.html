@@ -1218,41 +1218,6 @@
       z-index: 0;
     }
 
-    /* PERBAIKAN: overlay "Memuat data" di atas panel Detail Kegiatan.
-       Dipakai saat berpindah dari kegiatan A yang sedang terbuka ke
-       kegiatan B (klik event lain di kalender) -- supaya transisinya
-       kelihatan sedang memproses (bukan macet/tidak merespons) selama
-       menunggu detail lengkap kegiatan B diambil dari server. Elemen
-       ini menutupi seluruh #panelDetailSection (termasuk header/footer
-       yang freeze), sehingga konten kegiatan A yang lama tidak terlihat
-       "menggantung" saat menunggu data kegiatan B siap. */
-    .panel-detail-loading-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.6rem;
-      background-color: rgba(255, 255, 255, 0.88);
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      transition: opacity 0.18s ease, visibility 0.18s ease;
-      z-index: 5;
-    }
-    .panel-detail-loading-overlay.active {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-    }
-    .panel-detail-loading-overlay p {
-      margin: 0;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--color-muted);
-    }
-
     /* PERBAIKAN 1: Menambahkan margin-bottom & padding lebih tegas pada Header Panel */
     .panel-header {
       padding: 1.25rem 1.25rem 1rem;
@@ -3913,16 +3878,6 @@
 
           <!-- SECTION 3B: DETAIL KEGIATAN YANG DIPILIH -->
           <div id="panelDetailSection" class="panel-view-section panel-hidden">
-
-            <!-- PERBAIKAN: overlay "Memuat data" -- lihat penjelasan pada
-                 CSS .panel-detail-loading-overlay & fungsi
-                 showDetailLoadingOverlay()/hideDetailLoadingOverlay() di
-                 JS. Ditampilkan sebentar setiap kali panel ini beralih
-                 menampilkan kegiatan lain (mis. kegiatan A -> B). -->
-            <div class="panel-detail-loading-overlay" id="panelDetailLoadingOverlay">
-              <div class="spinner-border text-secondary" role="status" style="width:2rem;height:2rem;"></div>
-              <p>Memuat data...</p>
-            </div>
             
             <!-- FREEZE TOP: Header, Judul, Tanggal/Waktu -->
             <div class="panel-detail-fixed-header">
@@ -4350,62 +4305,13 @@
 
     const MAX_LOCK_RETRY_ATTEMPTS_ = 2; // percobaan ULANG (di luar percobaan pertama)
 
-    // PERBAIKAN: gangguan transien di level jaringan/infrastruktur Google
-    // (mis. Web App Apps Script sempat membalas HTTP 404 sesaat setelah
-    // deploy versi baru dipublikasikan -- request belum sempat masuk ke
-    // doPost() sama sekali, jadi TIDAK tercatat di log Executions Apps
-    // Script, lihat laporan pengguna) sebelumnya langsung dilaporkan gagal
-    // ke pengguna tanpa dicoba ulang, padahal biasanya sembuh sendiri dalam
-    // hitungan detik. Aksi-aksi BACA di bawah ini (murni mengambil data,
-    // tidak mengubah apa pun di server) aman dicoba ulang secara diam-diam
-    // satu kali sebelum benar-benar dilaporkan gagal -- berbeda dari aksi
-    // TULIS (saveEvent dkk) yang TIDAK dimasukkan ke sini krn mengulang
-    // begitu saja berisiko menyimpan data dobel kalau ternyata permintaan
-    // pertama sebenarnya sudah sempat diproses server.
-    const READONLY_RETRYABLE_ACTIONS_ = ['authenticateUser', 'getMasterData', 'getEvents', 'getEventDetail'];
-    const MAX_TRANSIENT_RETRY_ATTEMPTS_ = 1;
-
-    /**
-     * Mengenali error yang berasal dari gangguan transien jaringan/infra
-     * (BUKAN error aplikasi seperti "Username atau password salah" atau
-     * "Anda tidak berhak..." yang dikirim server lewat data.__error, yang
-     * PASTI gagal lagi kalau sekadar diulang) -- yaitu error "HTTP <kode>
-     * dari server." yang dilempar sendiri di bawah saat res.ok === false,
-     * error mentah dari fetch() saat gagal terhubung sama sekali, atau
-     * timeout (lihat FETCH_TIMEOUT_MS_ di bawah).
-     */
-    function isTransientInfraError_(err) {
-      if (!err || typeof err.message !== 'string') return false;
-      return /^HTTP \d+ dari server\.$/.test(err.message) ||
-        /failed to fetch|networkerror|load failed/i.test(err.message) ||
-        /memakan waktu terlalu lama/i.test(err.message);
-    }
-
-    // PERBAIKAN: sebelumnya fetch() tidak punya batas waktu sama sekali --
-    // kalau suatu saat request benar-benar menggantung (bukan dibalas error
-    // cepat spt HTTP 404, tapi memang tidak pernah direspons sama sekali),
-    // area yang menunggunya (mis. kalender) akan diam SELAMANYA tanpa
-    // pemberitahuan apa pun (lihat laporan pengguna: "loading kalender
-    // menjadi lama dan tidak tampil"). Dengan AbortController di bawah,
-    // request yang tidak kunjung dibalas dalam FETCH_TIMEOUT_MS_ otomatis
-    // dianggap gagal (bukan menggantung selamanya), sehingga utk aksi baca
-    // bisa langsung masuk ke jalur coba-ulang otomatis di atas, atau -- utk
-    // aksi lain -- setidaknya pengguna melihat pesan error yg jelas alih2
-    // tampilan yg terkesan tidak merespons.
-    const FETCH_TIMEOUT_MS_ = 20000; // 20 detik
-
     function callServerAction_(action, params, onSuccess, onFailure, attempt) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS_);
-
       fetch(WEBAPP_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action, params }),
-        signal: controller.signal
+        body: JSON.stringify({ action, params })
       })
         .then(res => {
-          clearTimeout(timeoutId);
           if (!res.ok) throw new Error('HTTP ' + res.status + ' dari server.');
           return res.json();
         })
@@ -4416,11 +4322,6 @@
           if (onSuccess) onSuccess(data);
         })
         .catch(err => {
-          clearTimeout(timeoutId);
-          if (err && err.name === 'AbortError') {
-            err = new Error('Permintaan ke server memakan waktu terlalu lama (lebih dari ' + (FETCH_TIMEOUT_MS_ / 1000) + ' detik).');
-          }
-
           const isLockBusy = RETRYABLE_LOCK_ACTIONS_.includes(action) &&
             err && typeof err.message === 'string' &&
             err.message.indexOf(LOCK_BUSY_MESSAGE_) !== -1;
@@ -4433,19 +4334,6 @@
             const delayMs = 1500 * (attempt + 1) + Math.random() * 1000;
             console.warn('Aksi "' + action + '" antre krn lock penuh, coba ulang otomatis ke-' +
               (attempt + 2) + ' dalam ~' + Math.round(delayMs / 100) / 10 + ' dtk...');
-            setTimeout(() => {
-              callServerAction_(action, params, onSuccess, onFailure, attempt + 1);
-            }, delayMs);
-            return;
-          }
-
-          const isTransientReadFailure = READONLY_RETRYABLE_ACTIONS_.includes(action) &&
-            isTransientInfraError_(err) && attempt < MAX_TRANSIENT_RETRY_ATTEMPTS_;
-
-          if (isTransientReadFailure) {
-            const delayMs = 900 + Math.random() * 600;
-            console.warn('Aksi "' + action + '" gagal sesaat (' + err.message + '), coba ulang otomatis dalam ~' +
-              Math.round(delayMs / 100) / 10 + ' dtk...');
             setTimeout(() => {
               callServerAction_(action, params, onSuccess, onFailure, attempt + 1);
             }, delayMs);
@@ -6825,21 +6713,6 @@
       // kegiatan ini diubah (lihat reloadEvents()).
       currentDetailEventId = String(eventId);
 
-      // PERBAIKAN: jika panel Detail SUDAH terbuka menampilkan kegiatan
-      // lain (mis. kegiatan A) & pengguna klik kegiatan B lain di
-      // kalender, panel tidak lagi ikut animasi slide-in dari samping
-      // (karena memang sudah terlihat) -- tanpa penanda apa pun, area
-      // detail akan terlihat "diam"/tidak merespons selama menunggu
-      // data kegiatan B datang dari server, padahal isinya masih data
-      // kegiatan A yang lama. Overlay "Memuat data..." ditampilkan
-      // khusus untuk situasi ini supaya prosesnya terlihat jelas.
-      // Untuk pembukaan pertama kali (panel sebelumnya tersembunyi),
-      // overlay ini TIDAK ditampilkan karena animasi slide-in panel itu
-      // sendiri sudah cukup memberi sinyal "sedang memproses".
-      const panelDetailEl = document.getElementById('panelDetailSection');
-      const wasAlreadyOpen = !panelDetailEl.classList.contains('panel-hidden');
-      if (wasAlreadyOpen) showDetailLoadingOverlay();
-
       // Tampilkan panel SEGERA dgn placeholder loading utk bagian yang
       // butuh field detail, supaya tidak terasa "diam" menunggu round-trip
       // getEventDetail() -- field ringan (judul, waktu, badge, dsb) sendiri
@@ -6847,7 +6720,7 @@
       // seluruh rendering tetap dilakukan sekali di renderEventDetailPanel_()
       // segera setelah detail lengkap tersedia.
       document.getElementById('panelUpcomingSection').classList.add('panel-hidden');
-      panelDetailEl.classList.remove('panel-hidden');
+      document.getElementById('panelDetailSection').classList.remove('panel-hidden');
       document.getElementById('detailDeskripsiText').innerText = 'Memuat...';
       if (window.innerWidth <= MOBILE_BREAKPOINT) {
         document.getElementById('rightPanel').classList.add('mobile-open');
@@ -6859,7 +6732,6 @@
         evt = await ensureEventDetailLoaded_(eventId);
       } catch (err) {
         console.error('Gagal memuat detail kegiatan:', err);
-        hideDetailLoadingOverlay();
         showToast('error', 'Gagal memuat detail kegiatan. Silakan coba lagi.');
         showUpcomingPanel();
         return;
@@ -6867,26 +6739,9 @@
 
       // Pengguna mungkin sudah berpindah ke kegiatan lain / menutup panel
       // selagi menunggu respons server -> jangan render data yang sudah basi.
-      if (!evt || currentDetailEventId !== String(eventId)) {
-        hideDetailLoadingOverlay();
-        return;
-      }
+      if (!evt || currentDetailEventId !== String(eventId)) return;
 
       renderEventDetailPanel_(evt);
-      hideDetailLoadingOverlay();
-    }
-
-    /**
-     * PERBAIKAN: tampilkan/sembunyikan overlay "Memuat data..." di atas
-     * panel Detail Kegiatan -- lihat penjelasan lengkap di showEventDetail().
-     */
-    function showDetailLoadingOverlay() {
-      const overlay = document.getElementById('panelDetailLoadingOverlay');
-      if (overlay) overlay.classList.add('active');
-    }
-    function hideDetailLoadingOverlay() {
-      const overlay = document.getElementById('panelDetailLoadingOverlay');
-      if (overlay) overlay.classList.remove('active');
     }
 
     /**
@@ -7307,10 +7162,6 @@
       currentDetailEventId = null;
       document.getElementById('panelDetailSection').classList.add('panel-hidden');
       document.getElementById('panelUpcomingSection').classList.remove('panel-hidden');
-      // PERBAIKAN: pastikan overlay "Memuat data..." ikut tersembunyi
-      // kalau pengguna menutup panel Detail selagi masih menunggu data
-      // (mis. klik tombol kembali di tengah proses loading kegiatan B).
-      hideDetailLoadingOverlay();
     }
 
     function renderTimKerjaOptions() {
