@@ -4350,13 +4350,62 @@
 
     const MAX_LOCK_RETRY_ATTEMPTS_ = 2; // percobaan ULANG (di luar percobaan pertama)
 
+    // PERBAIKAN: gangguan transien di level jaringan/infrastruktur Google
+    // (mis. Web App Apps Script sempat membalas HTTP 404 sesaat setelah
+    // deploy versi baru dipublikasikan -- request belum sempat masuk ke
+    // doPost() sama sekali, jadi TIDAK tercatat di log Executions Apps
+    // Script, lihat laporan pengguna) sebelumnya langsung dilaporkan gagal
+    // ke pengguna tanpa dicoba ulang, padahal biasanya sembuh sendiri dalam
+    // hitungan detik. Aksi-aksi BACA di bawah ini (murni mengambil data,
+    // tidak mengubah apa pun di server) aman dicoba ulang secara diam-diam
+    // satu kali sebelum benar-benar dilaporkan gagal -- berbeda dari aksi
+    // TULIS (saveEvent dkk) yang TIDAK dimasukkan ke sini krn mengulang
+    // begitu saja berisiko menyimpan data dobel kalau ternyata permintaan
+    // pertama sebenarnya sudah sempat diproses server.
+    const READONLY_RETRYABLE_ACTIONS_ = ['authenticateUser', 'getMasterData', 'getEvents', 'getEventDetail'];
+    const MAX_TRANSIENT_RETRY_ATTEMPTS_ = 1;
+
+    /**
+     * Mengenali error yang berasal dari gangguan transien jaringan/infra
+     * (BUKAN error aplikasi seperti "Username atau password salah" atau
+     * "Anda tidak berhak..." yang dikirim server lewat data.__error, yang
+     * PASTI gagal lagi kalau sekadar diulang) -- yaitu error "HTTP <kode>
+     * dari server." yang dilempar sendiri di bawah saat res.ok === false,
+     * error mentah dari fetch() saat gagal terhubung sama sekali, atau
+     * timeout (lihat FETCH_TIMEOUT_MS_ di bawah).
+     */
+    function isTransientInfraError_(err) {
+      if (!err || typeof err.message !== 'string') return false;
+      return /^HTTP \d+ dari server\.$/.test(err.message) ||
+        /failed to fetch|networkerror|load failed/i.test(err.message) ||
+        /memakan waktu terlalu lama/i.test(err.message);
+    }
+
+    // PERBAIKAN: sebelumnya fetch() tidak punya batas waktu sama sekali --
+    // kalau suatu saat request benar-benar menggantung (bukan dibalas error
+    // cepat spt HTTP 404, tapi memang tidak pernah direspons sama sekali),
+    // area yang menunggunya (mis. kalender) akan diam SELAMANYA tanpa
+    // pemberitahuan apa pun (lihat laporan pengguna: "loading kalender
+    // menjadi lama dan tidak tampil"). Dengan AbortController di bawah,
+    // request yang tidak kunjung dibalas dalam FETCH_TIMEOUT_MS_ otomatis
+    // dianggap gagal (bukan menggantung selamanya), sehingga utk aksi baca
+    // bisa langsung masuk ke jalur coba-ulang otomatis di atas, atau -- utk
+    // aksi lain -- setidaknya pengguna melihat pesan error yg jelas alih2
+    // tampilan yg terkesan tidak merespons.
+    const FETCH_TIMEOUT_MS_ = 20000; // 20 detik
+
     function callServerAction_(action, params, onSuccess, onFailure, attempt) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS_);
+
       fetch(WEBAPP_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action, params })
+        body: JSON.stringify({ action, params }),
+        signal: controller.signal
       })
         .then(res => {
+          clearTimeout(timeoutId);
           if (!res.ok) throw new Error('HTTP ' + res.status + ' dari server.');
           return res.json();
         })
@@ -4367,6 +4416,11 @@
           if (onSuccess) onSuccess(data);
         })
         .catch(err => {
+          clearTimeout(timeoutId);
+          if (err && err.name === 'AbortError') {
+            err = new Error('Permintaan ke server memakan waktu terlalu lama (lebih dari ' + (FETCH_TIMEOUT_MS_ / 1000) + ' detik).');
+          }
+
           const isLockBusy = RETRYABLE_LOCK_ACTIONS_.includes(action) &&
             err && typeof err.message === 'string' &&
             err.message.indexOf(LOCK_BUSY_MESSAGE_) !== -1;
@@ -4379,6 +4433,19 @@
             const delayMs = 1500 * (attempt + 1) + Math.random() * 1000;
             console.warn('Aksi "' + action + '" antre krn lock penuh, coba ulang otomatis ke-' +
               (attempt + 2) + ' dalam ~' + Math.round(delayMs / 100) / 10 + ' dtk...');
+            setTimeout(() => {
+              callServerAction_(action, params, onSuccess, onFailure, attempt + 1);
+            }, delayMs);
+            return;
+          }
+
+          const isTransientReadFailure = READONLY_RETRYABLE_ACTIONS_.includes(action) &&
+            isTransientInfraError_(err) && attempt < MAX_TRANSIENT_RETRY_ATTEMPTS_;
+
+          if (isTransientReadFailure) {
+            const delayMs = 900 + Math.random() * 600;
+            console.warn('Aksi "' + action + '" gagal sesaat (' + err.message + '), coba ulang otomatis dalam ~' +
+              Math.round(delayMs / 100) / 10 + ' dtk...');
             setTimeout(() => {
               callServerAction_(action, params, onSuccess, onFailure, attempt + 1);
             }, delayMs);
