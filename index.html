@@ -418,11 +418,30 @@
       }
 
       if (reduceMotion) {
-        // Tanpa animasi: langsung tandai selesai, jeda singkat, lalu alihkan.
-        stepEls.forEach(function(_, idx){ setStep(idx, 'done'); });
-        if (rail) rail.style.opacity = '0';
-        if (successMark) successMark.classList.add('show');
-        setTimeout(goToUrl, 500);
+        // Preferensi "reduce motion" aktif: animasi berat (sheen, float,
+        // blob) sudah dimatikan lewat CSS. Progres tetap diisi secara halus
+        // (transisi CSS, bukan animasi loop) supaya proses tetap terlihat
+        // dan tidak melompat instan ke halaman tujuan.
+        var REDUCED_DURATION = 1200; // ms, transisi bar terisi
+        var REDUCED_HOLD = 700; // ms, jeda menampilkan tanda sukses
+
+        if (railFill) {
+          railFill.style.transition = 'width ' + REDUCED_DURATION + 'ms ease';
+          // paksa reflow supaya transisi width benar-benar terpicu
+          void railFill.offsetWidth;
+          railFill.style.width = '100%';
+        }
+        if (rail) rail.setAttribute('aria-valuenow', '100');
+        setStep(0, 'active');
+        setTimeout(function(){ setStep(0, 'done'); setStep(1, 'active'); }, REDUCED_DURATION * 0.4);
+        setTimeout(function(){ setStep(1, 'done'); setStep(2, 'active'); }, REDUCED_DURATION * 0.75);
+
+        setTimeout(function(){
+          setStep(2, 'done');
+          if (rail) rail.style.opacity = '0';
+          if (successMark) successMark.classList.add('show');
+          setTimeout(goToUrl, REDUCED_HOLD);
+        }, REDUCED_DURATION);
         return;
       }
 
