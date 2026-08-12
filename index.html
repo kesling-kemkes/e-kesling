@@ -4305,6 +4305,28 @@
 
     const MAX_LOCK_RETRY_ATTEMPTS_ = 2; // percobaan ULANG (di luar percobaan pertama)
 
+    // ============================================================
+    // PERBAIKAN #12: 404 transien dari infrastruktur Apps Script saat
+    // beberapa request datang BERSAMAAN ke deployment /exec yang sama
+    // Ditemukan: begitu login sukses, loadDataAndInitCalendar() menembak
+    // getMasterData() & getEvents() SECARA BERSAMAAN (lihat PERBAIKAN #1).
+    // Apps Script Web App (dieksekusi sbg "Anyone") kadang menolak salah
+    // satu request yang datang nyaris bersamaan dengan HTTP 404 mentah dari
+    // sisi infrastruktur Google -- BUKAN error dari doPost()/Code.gs kita
+    // sendiri (doPost selalu membalas HTTP 200 + {__error:...} utk error
+    // aplikasi, lihat apiJsonOutput_). Ini kejadiannya persis sama di semua
+    // browser/koneksi begitu ada >1 request nyaris bersamaan, jadi ini
+    // bukan soal cache/ekstensi.
+    //
+    // PERBAIKAN: aksi BACA (read-only, aman diulang) yang gagal krn error
+    // transport (HTTP non-2xx, termasuk 404, atau kegagalan network murni)
+    // dicoba ulang otomatis dengan jeda singkat. Aksi TULIS TIDAK dimasukkan
+    // di sini krn mengulang tulis begitu saja bisa menyebabkan data dobel
+    // kalau ternyata request pertama sebenarnya sempat tersimpan di server.
+    // ============================================================
+    const RETRYABLE_READ_ACTIONS_ = ['authenticateUser', 'getMasterData', 'getEvents', 'getEventDetail'];
+    const MAX_TRANSPORT_RETRY_ATTEMPTS_ = 3;
+
     function callServerAction_(action, params, onSuccess, onFailure, attempt) {
       fetch(WEBAPP_URL, {
         method: 'POST',
@@ -4312,7 +4334,11 @@
         body: JSON.stringify({ action, params })
       })
         .then(res => {
-          if (!res.ok) throw new Error('HTTP ' + res.status + ' dari server.');
+          if (!res.ok) {
+            const transportErr = new Error('HTTP ' + res.status + ' dari server.');
+            transportErr.isTransport = true;
+            throw transportErr;
+          }
           return res.json();
         })
         .then(data => {
@@ -4334,6 +4360,22 @@
             const delayMs = 1500 * (attempt + 1) + Math.random() * 1000;
             console.warn('Aksi "' + action + '" antre krn lock penuh, coba ulang otomatis ke-' +
               (attempt + 2) + ' dalam ~' + Math.round(delayMs / 100) / 10 + ' dtk...');
+            setTimeout(() => {
+              callServerAction_(action, params, onSuccess, onFailure, attempt + 1);
+            }, delayMs);
+            return;
+          }
+
+          // PERBAIKAN #12: retry utk aksi baca yang gagal krn error
+          // transport murni (bukan error aplikasi/__error dari server kita).
+          const isTransportFailure = err && (err.isTransport || err instanceof TypeError);
+          const isRetryableRead = RETRYABLE_READ_ACTIONS_.includes(action) && isTransportFailure;
+
+          if (isRetryableRead && attempt < MAX_TRANSPORT_RETRY_ATTEMPTS_) {
+            const delayMs = 400 * (attempt + 1) + Math.random() * 300;
+            console.warn('Aksi "' + action + '" gagal krn error transport (' + err.message +
+              '), coba ulang otomatis ke-' + (attempt + 2) + ' dalam ~' +
+              Math.round(delayMs / 100) / 10 + ' dtk...');
             setTimeout(() => {
               callServerAction_(action, params, onSuccess, onFailure, attempt + 1);
             }, delayMs);
@@ -5118,11 +5160,18 @@
      * berjalan, bukan menembak request baru — lihat guard isFetchingEvents).
      */
     function loadDataAndInitCalendar() {
-      // Mulai ambil data kegiatan di latar belakang, paralel dengan master data.
-      fetchEventsFromServer(
-        function() { /* tidak perlu aksi khusus; initCalendar() akan memakainya lewat cache klien */ },
-        function(err) { console.error('Gagal memuat data kegiatan:', err); }
-      );
+      // PERBAIKAN #12: jeda singkat sebelum getEvents() ditembak, supaya
+      // tidak persis bersamaan dgn getMasterData() di bawah (mengurangi
+      // peluang 404 transien dari infrastruktur Apps Script saat >1
+      // request datang nyaris bersamaan ke deployment /exec yang sama --
+      // lihat catatan lengkap di RETRYABLE_READ_ACTIONS_ / callServerAction_).
+      // Tetap terasa "paralel" bagi pengguna krn jedanya sangat singkat.
+      setTimeout(function() {
+        fetchEventsFromServer(
+          function() { /* tidak perlu aksi khusus; initCalendar() akan memakainya lewat cache klien */ },
+          function(err) { console.error('Gagal memuat data kegiatan:', err); }
+        );
+      }, 250);
 
       google.script.run.withSuccessHandler(function(master) {
         masterTim = master.listTim;
