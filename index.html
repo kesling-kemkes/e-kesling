@@ -1218,6 +1218,41 @@
       z-index: 0;
     }
 
+    /* PERBAIKAN: overlay "Memuat data" di atas panel Detail Kegiatan.
+       Dipakai saat berpindah dari kegiatan A yang sedang terbuka ke
+       kegiatan B (klik event lain di kalender) -- supaya transisinya
+       kelihatan sedang memproses (bukan macet/tidak merespons) selama
+       menunggu detail lengkap kegiatan B diambil dari server. Elemen
+       ini menutupi seluruh #panelDetailSection (termasuk header/footer
+       yang freeze), sehingga konten kegiatan A yang lama tidak terlihat
+       "menggantung" saat menunggu data kegiatan B siap. */
+    .panel-detail-loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      background-color: rgba(255, 255, 255, 0.88);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.18s ease, visibility 0.18s ease;
+      z-index: 5;
+    }
+    .panel-detail-loading-overlay.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .panel-detail-loading-overlay p {
+      margin: 0;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--color-muted);
+    }
+
     /* PERBAIKAN 1: Menambahkan margin-bottom & padding lebih tegas pada Header Panel */
     .panel-header {
       padding: 1.25rem 1.25rem 1rem;
@@ -3878,6 +3913,16 @@
 
           <!-- SECTION 3B: DETAIL KEGIATAN YANG DIPILIH -->
           <div id="panelDetailSection" class="panel-view-section panel-hidden">
+
+            <!-- PERBAIKAN: overlay "Memuat data" -- lihat penjelasan pada
+                 CSS .panel-detail-loading-overlay & fungsi
+                 showDetailLoadingOverlay()/hideDetailLoadingOverlay() di
+                 JS. Ditampilkan sebentar setiap kali panel ini beralih
+                 menampilkan kegiatan lain (mis. kegiatan A -> B). -->
+            <div class="panel-detail-loading-overlay" id="panelDetailLoadingOverlay">
+              <div class="spinner-border text-secondary" role="status" style="width:2rem;height:2rem;"></div>
+              <p>Memuat data...</p>
+            </div>
             
             <!-- FREEZE TOP: Header, Judul, Tanggal/Waktu -->
             <div class="panel-detail-fixed-header">
@@ -6713,6 +6758,21 @@
       // kegiatan ini diubah (lihat reloadEvents()).
       currentDetailEventId = String(eventId);
 
+      // PERBAIKAN: jika panel Detail SUDAH terbuka menampilkan kegiatan
+      // lain (mis. kegiatan A) & pengguna klik kegiatan B lain di
+      // kalender, panel tidak lagi ikut animasi slide-in dari samping
+      // (karena memang sudah terlihat) -- tanpa penanda apa pun, area
+      // detail akan terlihat "diam"/tidak merespons selama menunggu
+      // data kegiatan B datang dari server, padahal isinya masih data
+      // kegiatan A yang lama. Overlay "Memuat data..." ditampilkan
+      // khusus untuk situasi ini supaya prosesnya terlihat jelas.
+      // Untuk pembukaan pertama kali (panel sebelumnya tersembunyi),
+      // overlay ini TIDAK ditampilkan karena animasi slide-in panel itu
+      // sendiri sudah cukup memberi sinyal "sedang memproses".
+      const panelDetailEl = document.getElementById('panelDetailSection');
+      const wasAlreadyOpen = !panelDetailEl.classList.contains('panel-hidden');
+      if (wasAlreadyOpen) showDetailLoadingOverlay();
+
       // Tampilkan panel SEGERA dgn placeholder loading utk bagian yang
       // butuh field detail, supaya tidak terasa "diam" menunggu round-trip
       // getEventDetail() -- field ringan (judul, waktu, badge, dsb) sendiri
@@ -6720,7 +6780,7 @@
       // seluruh rendering tetap dilakukan sekali di renderEventDetailPanel_()
       // segera setelah detail lengkap tersedia.
       document.getElementById('panelUpcomingSection').classList.add('panel-hidden');
-      document.getElementById('panelDetailSection').classList.remove('panel-hidden');
+      panelDetailEl.classList.remove('panel-hidden');
       document.getElementById('detailDeskripsiText').innerText = 'Memuat...';
       if (window.innerWidth <= MOBILE_BREAKPOINT) {
         document.getElementById('rightPanel').classList.add('mobile-open');
@@ -6732,6 +6792,7 @@
         evt = await ensureEventDetailLoaded_(eventId);
       } catch (err) {
         console.error('Gagal memuat detail kegiatan:', err);
+        hideDetailLoadingOverlay();
         showToast('error', 'Gagal memuat detail kegiatan. Silakan coba lagi.');
         showUpcomingPanel();
         return;
@@ -6739,9 +6800,26 @@
 
       // Pengguna mungkin sudah berpindah ke kegiatan lain / menutup panel
       // selagi menunggu respons server -> jangan render data yang sudah basi.
-      if (!evt || currentDetailEventId !== String(eventId)) return;
+      if (!evt || currentDetailEventId !== String(eventId)) {
+        hideDetailLoadingOverlay();
+        return;
+      }
 
       renderEventDetailPanel_(evt);
+      hideDetailLoadingOverlay();
+    }
+
+    /**
+     * PERBAIKAN: tampilkan/sembunyikan overlay "Memuat data..." di atas
+     * panel Detail Kegiatan -- lihat penjelasan lengkap di showEventDetail().
+     */
+    function showDetailLoadingOverlay() {
+      const overlay = document.getElementById('panelDetailLoadingOverlay');
+      if (overlay) overlay.classList.add('active');
+    }
+    function hideDetailLoadingOverlay() {
+      const overlay = document.getElementById('panelDetailLoadingOverlay');
+      if (overlay) overlay.classList.remove('active');
     }
 
     /**
@@ -7162,6 +7240,10 @@
       currentDetailEventId = null;
       document.getElementById('panelDetailSection').classList.add('panel-hidden');
       document.getElementById('panelUpcomingSection').classList.remove('panel-hidden');
+      // PERBAIKAN: pastikan overlay "Memuat data..." ikut tersembunyi
+      // kalau pengguna menutup panel Detail selagi masih menunggu data
+      // (mis. klik tombol kembali di tengah proses loading kegiatan B).
+      hideDetailLoadingOverlay();
     }
 
     function renderTimKerjaOptions() {
