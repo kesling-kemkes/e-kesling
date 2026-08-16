@@ -543,13 +543,6 @@
     .card{ padding:44px 26px 32px; border-radius:22px; }
     .tile{ width:100%; max-width:300px; }
   }
-
-  @media (prefers-reduced-motion: reduce){
-    #landing, .card, .logo-wrap img, .blob, .rail-fill, .success-circle, .success-mark.show .success-check, .tile{
-      animation:none !important;
-      opacity:1 !important;
-    }
-  }
 </style>
 </head>
 <body>
@@ -727,7 +720,6 @@
       var successMark = document.getElementById('successMark');
       var stepEls = document.querySelectorAll('#steps .step');
 
-      var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       var current = null;
       var rafId = null;
       var timers = [];
@@ -765,34 +757,6 @@
       }
 
       function runProgress(){
-        if (reduceMotion) {
-          var REDUCED_DURATION = 1200;
-          var REDUCED_HOLD = 700;
-
-          if (railFill) {
-            railFill.style.transition = 'width ' + REDUCED_DURATION + 'ms ease';
-            void railFill.offsetWidth;
-            railFill.style.width = '100%';
-          }
-          if (stepsFill) {
-            stepsFill.style.transition = 'width ' + REDUCED_DURATION + 'ms ease';
-            void stepsFill.offsetWidth;
-            stepsFill.style.width = '100%';
-          }
-          if (rail) rail.setAttribute('aria-valuenow', '100');
-          setStep(0, 'active');
-          timers.push(setTimeout(function(){ setStep(0, 'done'); setStep(1, 'active'); }, REDUCED_DURATION * 0.4));
-          timers.push(setTimeout(function(){ setStep(1, 'done'); setStep(2, 'active'); }, REDUCED_DURATION * 0.75));
-
-          timers.push(setTimeout(function(){
-            setStep(2, 'done');
-            if (rail) rail.style.opacity = '0';
-            if (successMark) successMark.classList.add('show');
-            timers.push(setTimeout(goToUrl, REDUCED_HOLD));
-          }, REDUCED_DURATION));
-          return;
-        }
-
         var DURATION = 1700;
         var HOLD_AFTER_SUCCESS = 1000;
         var start = null;
