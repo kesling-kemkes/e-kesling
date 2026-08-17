@@ -102,20 +102,41 @@
 
   /* ---------------------------------------------------------------
      HALAMAN PEMILIHAN (landing) -- logo + tiga kartu pilihan
+
+     CATATAN PENTING soal animasi masuk:
+     Sebelumnya elemen ini memakai `animation: riseIn ... both` yang
+     berjalan otomatis begitu CSS diparse. Masalahnya, waktu animasi
+     CSS dihitung sejak dokumen mulai dimuat -- bukan sejak halaman
+     benar-benar tampil di layar. Karena stylesheet Google Fonts di
+     <head> bersifat render-blocking, pada kunjungan pertama (belum
+     ada cache font) waktu unduh font ikut "memakan" durasi animasi
+     di belakang layar, sehingga begitu halaman akhirnya dicat,
+     animasinya sudah kelar duluan -- kesannya muncul tiba-tiba.
+     Saat refresh, font sudah tersimpan di cache browser sehingga
+     render lebih cepat dan animasi sempat terlihat.
+
+     Perbaikannya: elemen ini dimulai dalam kondisi "sebelum animasi"
+     (opacity:0, sedikit turun) lewat CSS transition biasa, lalu kelas
+     .page-ready ditambahkan oleh JavaScript setelah frame pertama
+     benar-benar tercat (lihat skrip di bagian bawah). Dengan begitu
+     animasi selalu terpicu dari titik ketika pengguna sungguh melihat
+     halamannya, terlepas dari cepat/lambatnya jaringan.
   --------------------------------------------------------------- */
   #landing{
     text-align:center;
-    animation:riseIn .7s cubic-bezier(.19,1,.22,1) both;
-    transition:opacity .25s ease, transform .25s ease;
+    opacity:0;
+    transform:translateY(18px) scale(.98);
+    transition:opacity .7s cubic-bezier(.19,1,.22,1), transform .7s cubic-bezier(.19,1,.22,1);
+  }
+  #landing.page-ready{
+    opacity:1;
+    transform:translateY(0) scale(1);
   }
   #landing.leaving{
     opacity:0;
     transform:translateY(-10px) scale(.98);
     pointer-events:none;
-  }
-  @keyframes riseIn{
-    from{ opacity:0; transform:translateY(18px) scale(.98); }
-    to{ opacity:1; transform:translateY(0) scale(1); }
+    transition:opacity .25s ease, transform .25s ease;
   }
 
   .logo-wrap{
@@ -348,6 +369,10 @@
     animation:riseIn .7s cubic-bezier(.19,1,.22,1) both;
     transition:transform .35s cubic-bezier(.19,1,.22,1), box-shadow .35s ease;
   }
+  @keyframes riseIn{
+    from{ opacity:0; transform:translateY(18px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
   .card:hover{
     transform:translateY(-4px);
     box-shadow:0 40px 80px -30px rgba(13,63,56,0.32), 0 10px 28px -12px rgba(13,63,56,0.2);
@@ -469,7 +494,7 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    background:radial-gradient(circle at 32% 28%, #ffffff, var(--mint-100) 78%);
+    background:var(--mint-100);
     border:1.5px solid rgba(27,161,135,.2);
     box-shadow:none;
   }
@@ -491,9 +516,9 @@
   @keyframes drawCheck{
     to{ stroke-dashoffset:0; }
   }
-  /* Teks "Berhasil dimuat" didesain sebagai chip/badge status --
-     latar gradasi lembut, huruf kapital & berjarak -- bukan sekadar
-     teks polos. */
+  /* Teks status kini tampil sebagai teks polos (tanpa latar pill) --
+     huruf kapital & berjarak, dengan tiga titik yang muncul bertahap
+     (lihat .success-text .dot di bawah). */
   .success-text{
     display:inline-flex;
     align-items:center;
@@ -502,10 +527,6 @@
     color:var(--teal-700);
     letter-spacing:0.06em;
     text-transform:uppercase;
-    padding:9px 22px;
-    border-radius:999px;
-    background:linear-gradient(135deg, rgba(27,161,135,0.14), rgba(205,220,41,0.22));
-    border:1px solid rgba(27,161,135,0.22);
     opacity:0;
     transform:translateY(4px);
     transition:opacity .35s ease .4s, transform .35s ease .4s;
@@ -513,6 +534,18 @@
   .success-mark.show .success-text{
     opacity:1;
     transform:translateY(0);
+  }
+  .success-text .dot{
+    opacity:0;
+  }
+  .success-mark.show .success-text .dot{
+    animation:dotFade .25s ease forwards;
+  }
+  .success-mark.show .success-text .dot:nth-child(1){ animation-delay:.55s; }
+  .success-mark.show .success-text .dot:nth-child(2){ animation-delay:.75s; }
+  .success-mark.show .success-text .dot:nth-child(3){ animation-delay:.95s; }
+  @keyframes dotFade{
+    to{ opacity:1; }
   }
 
   /* Tombol Kembali tanpa bentuk pill -- teks polos + panah, tetap
@@ -656,6 +689,9 @@
 </style>
 </head>
 <body>
+  <noscript>
+    <style>#landing{ opacity:1 !important; transform:none !important; }</style>
+  </noscript>
   <div class="bg" aria-hidden="true">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
@@ -764,7 +800,7 @@
               <path class="success-check" fill="none" d="M9 27 L20 39 L43 16"/>
             </svg>
           </span>
-          <span class="success-text">Berhasil dimuat</span>
+          <span class="success-text">Membuka halaman<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>
         </div>
         </div>
       </div>
@@ -803,6 +839,20 @@
       };
 
       var landing = document.getElementById('landing');
+
+      // Picu transisi "muncul" halaman landing setelah frame pertama
+      // benar-benar tercat, bukan mengandalkan CSS animation yang
+      // waktunya bisa "termakan" oleh keterlambatan pemuatan resource
+      // (mis. font Google Fonts) pada kunjungan pertama. Dua lapis
+      // requestAnimationFrame memastikan browser sudah melukis kondisi
+      // awal (opacity:0) sebelum kita pindah ke kondisi akhir, supaya
+      // transisinya selalu terlihat berjalan.
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          if (landing) landing.classList.add('page-ready');
+        });
+      });
+
       var processView = document.getElementById('processView');
       var processDesc = document.getElementById('processDesc');
       var fallbackLink = document.getElementById('fallbackLink');
