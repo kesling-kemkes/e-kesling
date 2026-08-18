@@ -221,9 +221,9 @@
 
   /* Warna border tiap kartu disamakan dengan warna latar area ikonnya
      supaya kartu & ikon terasa satu kesatuan warna. */
-  .tile-mint{ border-color:#bfe4d5; }
-  .tile-blue{ border-color:#b9d7f2; }
-  .tile-red{ border-color:#f3c2bc; }
+  .tile-mint{ border-color:#bfe4d5; --title-color:var(--teal-700); }
+  .tile-blue{ border-color:#b9d7f2; --title-color:#1f6fb2; }
+  .tile-red{ border-color:#f3c2bc; --title-color:#c1443a; }
 
   .tile-icon{
     padding:60px 20px;
@@ -304,14 +304,14 @@
   .tile-title{
     font-size:1.46rem;
     font-weight:800;
-    color:var(--teal-900);
+    color:var(--title-color, var(--teal-900));
     line-height:1.2;
     margin:0;
     text-align:center;
   }
   .tile-badge{
     margin-top:auto;
-    font-size:0.64rem;
+    font-size:0.72rem;
     font-weight:800;
     letter-spacing:0.09em;
     text-transform:uppercase;
@@ -329,7 +329,7 @@
 
   /* ---------------------------------------------------------------
      KARTU PROSES -- persis tampilan yang sudah ada sebelumnya,
-     ditampilkan setelah area kartu (Portal Kesling / Tautan Kegiatan / Login) diklik.
+     ditampilkan setelah area kartu (Pusat Data dan Dokumen / Informasi Kegiatan / Masuk) diklik.
   --------------------------------------------------------------- */
   .hidden{ display:none !important; }
 
@@ -517,16 +517,15 @@
     to{ stroke-dashoffset:0; }
   }
   /* Teks status kini tampil sebagai teks polos (tanpa latar pill) --
-     huruf kapital & berjarak, dengan tiga titik yang muncul bertahap
-     (lihat .success-text .dot di bawah). */
+     huruf normal (bukan kapital), dengan tiga titik yang muncul
+     bertahap (lihat .success-text .dot di bawah). */
   .success-text{
     display:inline-flex;
     align-items:center;
-    font-size:0.8rem;
+    font-size:0.9rem;
     font-weight:800;
     color:var(--teal-700);
-    letter-spacing:0.06em;
-    text-transform:uppercase;
+    letter-spacing:0.01em;
     opacity:0;
     transform:translateY(4px);
     transition:opacity .35s ease .4s, transform .35s ease .4s;
@@ -643,7 +642,7 @@
     }
     .login-pill-btn:active{ transform:translateY(0); }
 
-    /* Kartu Portal Kesling & Tautan Kegiatan disandingkan 2 kolom dan
+    /* Kartu Pusat Data dan Dokumen & Informasi Kegiatan disandingkan 2 kolom dan
        dirampingkan; kartu Login disembunyikan karena sudah diwakili
        tombol pada header. Margin atas & bawah otomatis membuat kartu
        jatuh di tengah ruang layar, bukan menempel ke header. */
@@ -667,7 +666,7 @@
        tidak memaksa baris kedua padahal ruang masih cukup. */
     .tile-title{ font-size:1.04rem; }
     .tile-break{ display:none; }
-    .tile-badge{ font-size:0.58rem; }
+    .tile-badge{ font-size:0.66rem; }
 
     /* Brandline dipatri di tengah-bawah layar sebagai footer,
        lepas dari alur flex supaya kartu bisa benar-benar di tengah. */
@@ -720,9 +719,9 @@
 
       <div class="tiles">
 
-        <!-- Kartu 1: Portal Kesling (Publik) -->
-        <!-- Catatan: ikon di bawah ini adalah placeholder visual untuk kartu Portal Kesling, sesuaikan bila tersedia aset resmi -->
-        <div class="tile tile-mint" role="button" tabindex="0" aria-label="Buka Portal Kesling"
+        <!-- Kartu 1: Pusat Data dan Dokumen (Publik) -->
+        <!-- Catatan: ikon di bawah ini adalah placeholder visual untuk kartu Pusat Data dan Dokumen, sesuaikan bila tersedia aset resmi -->
+        <div class="tile tile-mint" role="button" tabindex="0" aria-label="Buka Pusat Data dan Dokumen"
              onclick="startRedirect('portal')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();startRedirect('portal');}">
           <div class="tile-icon icon-mint">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -735,14 +734,14 @@
             </svg>
           </div>
           <div class="tile-body">
-            <div class="tile-title-wrap"><p class="tile-title">Portal<br class="tile-break"> Kesling</p></div>
+            <div class="tile-title-wrap"><p class="tile-title">Pusat Data<br class="tile-break"> dan Dokumen</p></div>
             <p class="tile-badge">Publik</p>
           </div>
         </div>
 
-        <!-- Kartu 2: Tautan Kegiatan (Publik) -->
-        <!-- Catatan: ikon di bawah ini adalah placeholder visual untuk kartu Tautan Kegiatan, sesuaikan bila tersedia aset resmi -->
-        <div class="tile tile-blue" role="button" tabindex="0" aria-label="Buka Tautan Kegiatan"
+        <!-- Kartu 2: Informasi Kegiatan (Publik) -->
+        <!-- Catatan: ikon di bawah ini adalah placeholder visual untuk kartu Informasi Kegiatan, sesuaikan bila tersedia aset resmi -->
+        <div class="tile tile-blue" role="button" tabindex="0" aria-label="Buka Informasi Kegiatan"
              onclick="startRedirect('kegiatan')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();startRedirect('kegiatan');}">
           <div class="tile-icon icon-blue">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -756,7 +755,7 @@
             </svg>
           </div>
           <div class="tile-body">
-            <div class="tile-title-wrap"><p class="tile-title">Tautan<br class="tile-break"> Kegiatan</p></div>
+            <div class="tile-title-wrap"><p class="tile-title">Informasi<br class="tile-break"> Kegiatan</p></div>
             <p class="tile-badge">Publik</p>
           </div>
         </div>
@@ -773,7 +772,7 @@
             </svg>
           </div>
           <div class="tile-body">
-            <div class="tile-title-wrap"><p class="tile-title">Masuk</p></div>
+            <div class="tile-title-wrap"><p class="tile-title">e-Kesling</p></div>
             <p class="tile-badge">Khusus Pegawai</p>
           </div>
         </div>
@@ -816,20 +815,20 @@
            (dipindahkan dari redirect otomatis versi sebelumnya).
          - "portal" dan "kegiatan" BELUM memiliki tautan resmi.
            Catatan: ganti nilai url di bawah ini dengan tautan final
-           Portal Kesling dan Tautan Kegiatan begitu tersedia.
+           Pusat Data dan Dokumen dan Informasi Kegiatan begitu tersedia.
       --------------------------------------------------------------- */
       var TARGETS = {
         portal: {
-          // TODO catatan: tautan Portal Kesling akan ditambahkan nanti
+          // TODO catatan: tautan Pusat Data dan Dokumen akan ditambahkan nanti
           url: '',
           desc: 'Mohon tunggu sebentar...',
-          label: 'Portal Kesling'
+          label: 'Pusat Data dan Dokumen'
         },
         kegiatan: {
-          // TODO catatan: tautan Tautan Kegiatan akan ditambahkan nanti
+          // TODO catatan: tautan Informasi Kegiatan akan ditambahkan nanti
           url: '',
           desc: 'Mohon tunggu sebentar...',
-          label: 'Tautan Kegiatan'
+          label: 'Informasi Kegiatan'
         },
         login: {
           url: 'https://script.google.com/macros/s/AKfycbwOih--EQqMIGkAHLnzZ7uIUAaei7M7PJMBLKtZQ0hGE-SJ23-THClSVKpUeyoAApAuHA/exec',
